@@ -1,0 +1,331 @@
+<title>おみくじ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+/* Layout: 一枚のおみくじ札を中央に。上に筒、下に「引く」ボタンと履歴。 */
+:root {
+  --bg: #f3f0ea;
+  --paper: #fffdf8;
+  --ink: #23201c;
+  --muted: #7a7166;
+  --line: #d9d1c4;
+  --shu: #c8321f;       /* 朱 */
+  --shu-ink: #ffffff;
+  --gold: #a57a1f;
+  --kyo: #3c4a63;       /* 凶は藍 */
+  --display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #16171c; --paper: #22232a; --ink: #eee9df; --muted: #a39a8c; --line: #3a3b44;
+    --shu: #e0543e; --shu-ink: #ffffff; --gold: #d6a943; --kyo: #8ea3c9; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #16171c; --paper: #22232a; --ink: #eee9df; --muted: #a39a8c; --line: #3a3b44;
+  --shu: #e0543e; --shu-ink: #ffffff; --gold: #d6a943; --kyo: #8ea3c9; color-scheme: dark;
+}
+html, body { min-height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body);
+  padding: 0 16px; display: flex; justify-content: center;
+}
+main { width: 100%; max-width: 420px; padding-block: 32px 48px; display: flex; flex-direction: column; align-items: center; gap: 24px; }
+h1 { font-family: var(--display); font-weight: 800; font-size: 1.6rem; letter-spacing: .3em; margin: 0; text-wrap: balance; }
+.sub { margin: -16px 0 0; color: var(--muted); font-size: .85rem; }
+
+.slip {
+  position: relative; width: 100%; background: var(--paper);
+  border: 1px solid var(--line); border-top: 10px solid var(--shu);
+  padding: 20px 20px 28px; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / .08);
+}
+.slip::after { /* 札の下端の切り込み */
+  content: ""; position: absolute; left: 50%; bottom: -1px; transform: translateX(-50%);
+  width: 40px; height: 8px; background: var(--bg); border-radius: 8px 8px 0 0;
+}
+.no { font-family: var(--display); font-size: .95rem; color: var(--muted); letter-spacing: .2em; font-variant-numeric: tabular-nums; }
+.fortune {
+  font-family: var(--display); font-weight: 800; line-height: 1;
+  font-size: clamp(5rem, 30vw, 8.5rem); writing-mode: vertical-rl; text-orientation: upright;
+  color: var(--shu); min-height: 1.1em; display: flex; align-items: center; justify-content: center;
+  letter-spacing: .05em;
+}
+.fortune.gold { color: var(--gold); }
+.fortune.kyo { color: var(--kyo); }
+.fortune.idle { color: var(--line); }
+.fortune.pop { animation: pop .6s cubic-bezier(.2,1.6,.4,1); }
+@keyframes pop { from { transform: scale(.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.comment {
+  margin: 4px 0 0; font-size: 1.05rem; line-height: 1.8; text-align: center; min-height: 3.6em;
+  max-width: 28ch; text-wrap: balance;
+}
+.rule { width: 60%; border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+
+button#draw {
+  font-family: var(--display); font-weight: 800; font-size: 1.4rem; letter-spacing: .5em; text-indent: .5em;
+  background: var(--shu); color: var(--shu-ink); border: 0; border-radius: 999px;
+  padding: 16px 56px; cursor: pointer; box-shadow: 0 4px 0 color-mix(in srgb, var(--shu) 60%, #000);
+  transition: transform .08s, box-shadow .08s;
+}
+button#draw:hover { filter: brightness(1.06); }
+button#draw:active { transform: translateY(3px); box-shadow: 0 1px 0 color-mix(in srgb, var(--shu) 60%, #000); }
+button#draw:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+button#draw:disabled { opacity: .7; cursor: wait; }
+.shake { animation: shake .12s linear 15; }
+@keyframes shake { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
+
+.toggles { margin-top: -12px; display: flex; gap: 8px; }
+button#sound, button#voice {
+  font-family: var(--body); font-size: .85rem; color: var(--muted);
+  background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; cursor: pointer;
+}
+button#sound:focus-visible, button#voice:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button#sound[aria-pressed="false"], button#voice[aria-pressed="false"] { opacity: .6; }
+
+.history { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.history h2 { font-size: .75rem; font-weight: 700; letter-spacing: .15em; color: var(--muted); margin: 0; }
+.history ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.history li { font-family: var(--display); font-size: .95rem; padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); }
+.history .empty { color: var(--muted); font-size: .85rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fortune.pop, .shake { animation: none; }
+}
+</style>
+
+<main>
+  <h1>おみくじ</h1>
+  <p class="sub">心を静めて、ボタンを押してください</p>
+
+  <section class="slip" id="slip" aria-live="polite">
+    <div class="no" id="no">第　番</div>
+    <div class="fortune idle" id="fortune">？</div>
+    <hr class="rule">
+    <p class="comment" id="comment">今日の運勢をうらないましょう。</p>
+  </section>
+
+  <button id="draw" type="button">引く</button>
+  <div class="toggles">
+    <button id="sound" type="button" aria-pressed="true">音：オン</button>
+    <button id="voice" type="button" aria-pressed="true">声：オン</button>
+  </div>
+
+  <section class="history">
+    <h2>これまでの結果</h2>
+    <ol id="hist"><li class="empty" style="border:0;background:none;padding:0">まだ引いていません</li></ol>
+  </section>
+</main>
+
+<script>
+const FORTUNES = [
+  { name: "大吉", weight: 16, cls: "gold", comments: [
+    "思い切って挑むほど、良い風が吹きます。",
+    "願いごとは声に出すと叶いやすい日。",
+    "最高の一日。周りにも幸せを分けて。"
+  ]},
+  { name: "吉", weight: 20, cls: "", comments: [
+    "素直な気持ちが良い縁を呼びます。",
+    "いつもの道に小さな幸運あり。",
+    "迷ったら、明るいほうを選んで吉。"
+  ]},
+  { name: "中吉", weight: 20, cls: "", comments: [
+    "コツコツ続けたことが実を結ぶ時。",
+    "人との会話にヒントが隠れています。",
+    "午後から運気が上がっていきます。"
+  ]},
+  { name: "小吉", weight: 18, cls: "", comments: [
+    "小さな喜びを大切にすると運が育ちます。",
+    "焦らずゆっくり。それが近道です。",
+    "身の回りを整えると気分も上向きに。"
+  ]},
+  { name: "末吉", weight: 14, cls: "", comments: [
+    "今は種まきの時期。後から花が咲きます。",
+    "急がば回れ。丁寧さが幸運の鍵。",
+    "早めに寝ると、明日が良い日になります。"
+  ]},
+  { name: "凶", weight: 12, cls: "kyo", comments: [
+    "ここからは上がるだけ。気を引き締めて。",
+    "今日は無理をせず、慎重に過ごしましょう。",
+    "おみくじを結んで、厄を置いていきましょう。"
+  ]}
+];
+
+const $ = id => document.getElementById(id);
+const toKanji = n => {
+  const d = ["〇","一","二","三","四","五","六","七","八","九"];
+  if (n < 10) return d[n];
+  const t = Math.floor(n / 10), o = n % 10;
+  return (t > 1 ? d[t] : "") + "十" + (o ? d[o] : "");
+};
+function pick() {
+  const total = FORTUNES.reduce((s, f) => s + f.weight, 0);
+  let r = Math.random() * total;
+  for (const f of FORTUNES) { if ((r -= f.weight) < 0) return f; }
+  return FORTUNES[0];
+}
+
+/* ---- 効果音（Web Audio で合成） ---- */
+const ROLL_MS = 1800;
+let ctx = null, soundOn = true, noiseBuf = null;
+function audio() {
+  if (!soundOn) return null;
+  try {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") ctx.resume();
+    if (!noiseBuf) {
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    return ctx;
+  } catch (e) { return null; }
+}
+// 小太鼓の一打
+function hit(t, vol, freq = 1800, len = 0.07) {
+  const src = ctx.createBufferSource(); src.buffer = noiseBuf;
+  const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = freq; bp.Q.value = 0.8;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+  src.connect(bp).connect(g).connect(ctx.destination);
+  src.start(t, Math.random() * 0.05); src.stop(t + len + 0.02);
+}
+function tone(t, freq, len, vol = 0.18, type = "triangle") {
+  const o = ctx.createOscillator(); o.type = type; o.frequency.value = freq;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + len + 0.05);
+}
+// ドラムロール：だんだん速く・大きく
+function drumRoll() {
+  const a = audio(); if (!a) return;
+  const start = a.currentTime + 0.02, dur = ROLL_MS / 1000;
+  let t = 0;
+  while (t < dur) {
+    const p = t / dur;
+    hit(start + t, 0.15 + 0.45 * p);
+    t += 0.07 - 0.035 * p;
+  }
+}
+// 結果の効果音（ジャーン＋結果ごとのメロディ）
+function resultSound(name) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + 0.02;
+  hit(t, 0.9, 5000, 0.9);           // シンバル
+  hit(t, 0.8, 120, 0.25);           // バスドラム
+  const N = { C4: 261.6, E4: 329.6, G4: 392, A4: 440, C5: 523.3, D5: 587.3, E5: 659.3, G5: 784, C6: 1046.5, Eb4: 311.1, B3: 246.9, G3: 196, Gb3: 185 };
+  const seq = {
+    "大吉": [],
+    "吉":   [["C5",0],["E5",.14],["G5",.28,.9]],
+    "中吉": [["G4",0],["C5",.14],["E5",.28,.9]],
+    "小吉": [["E5",0,.5],["C5",.16,.8]],
+    "末吉": [["A4",0,.6],["C5",.2,.9]],
+    "凶":   [["Eb4",0,.5,"sawtooth"],["B3",.3,.5,"sawtooth"],["Gb3",.6,1.1,"sawtooth"]]
+  }[name] || [];
+  for (const [n, dt, len = .4, type] of seq) tone(t + dt, N[n], len, type ? .08 : .18, type);
+  if (name === "大吉") fanfare(t + 0.1);
+}
+// 大吉だけの祝いファンファーレ（トランペット風の音＋きらきら）
+function brass(t, freq, len, vol = 0.12) {
+  for (const [type, mul, v] of [["sawtooth", 1, vol], ["square", 1.005, vol * 0.5]]) {
+    const o = ctx.createOscillator(); o.type = type; o.frequency.value = freq * mul;
+    const f = ctx.createBiquadFilter(); f.type = "lowpass";
+    f.frequency.setValueAtTime(600, t); f.frequency.linearRampToValueAtTime(3200, t + 0.06);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(v, t + 0.03);
+    g.gain.setValueAtTime(v, t + len * 0.7);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    o.connect(f).connect(g).connect(ctx.destination); o.start(t); o.stop(t + len + 0.05);
+  }
+}
+function fanfare(t) {
+  const F = { G4: 392, C5: 523.3, E5: 659.3, G5: 784, C6: 1046.5, E6: 1318.5, G6: 1568, A5: 880, F5: 698.5 };
+  // タラララ・ラーン｜タラララ・ラーン｜ターラ・ターラ・ターーン
+  const notes = [
+    ["G4",0,.13],["C5",.14,.13],["E5",.28,.13],["G5",.42,.5],
+    ["E5",.98,.13],["G5",1.12,.13],["C6",1.26,.6],
+    ["A5",1.95,.22],["G5",2.2,.22],["C6",2.45,1.4],
+    ["E5",2.45,1.4],["G5",2.45,1.4]
+  ];
+  for (const [n, dt, len] of notes) brass(t + dt, F[n], len);
+  hit(t + 2.45, 0.9, 5000, 1.4); hit(t + 2.45, 0.8, 120, 0.3);
+  // きらきら上昇するベル
+  for (let i = 0; i < 10; i++) {
+    const f = [1046.5, 1318.5, 1568, 2093][i % 4];
+    tone(t + 2.5 + i * 0.09, f, 0.5, 0.05, "sine");
+  }
+}
+
+$("sound").addEventListener("click", e => {
+  soundOn = !soundOn;
+  e.currentTarget.setAttribute("aria-pressed", soundOn);
+  e.currentTarget.textContent = soundOn ? "音：オン" : "音：オフ";
+});
+
+/* ---- 音声アナウンス（ブラウザの読み上げ機能。低くて力強い声に調整） ---- */
+let voiceOn = true;
+const canSpeak = "speechSynthesis" in window;
+function jaVoice() {
+  const vs = speechSynthesis.getVoices().filter(v => /^ja/i.test(v.lang));
+  return vs.find(v => /male|ichiro|otoya|keita|takumi|男/i.test(v.name)) || vs[0] || null;
+}
+function say(text, opts = {}) {
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "ja-JP"; u.pitch = opts.pitch ?? 0.4; u.rate = opts.rate ?? 0.95; u.volume = 1;
+  const v = jaVoice(); if (v) u.voice = v;
+  speechSynthesis.speak(u);
+}
+function announce(f, comment) {
+  if (!voiceOn || !canSpeak) return;
+  speechSynthesis.cancel();
+  setTimeout(() => {
+    say("おみくじの結果は…", { rate: 0.9 });
+    say(f.name + "！！", { rate: 0.7, pitch: 0.3 });
+    say(comment, { rate: 0.95 });
+  }, f.name === "大吉" ? 3800 : 700); // 大吉はファンファーレが終わってから読み上げ
+}
+if (canSpeak) speechSynthesis.getVoices();
+$("voice").addEventListener("click", e => {
+  voiceOn = !voiceOn;
+  if (!voiceOn && canSpeak) speechSynthesis.cancel();
+  e.currentTarget.setAttribute("aria-pressed", voiceOn);
+  e.currentTarget.textContent = voiceOn ? "声：オン" : "声：オフ";
+});
+
+const history = [];
+const btn = $("draw"), slip = $("slip"), fortune = $("fortune");
+
+btn.addEventListener("click", () => {
+  btn.disabled = true;
+  if (canSpeak) speechSynthesis.cancel();
+  drumRoll();
+  slip.classList.remove("shake"); void slip.offsetWidth; slip.classList.add("shake");
+  fortune.className = "fortune idle";
+  fortune.textContent = "…";
+  $("comment").textContent = "筒を振っています…";
+  $("no").textContent = "第　番";
+
+  setTimeout(() => {
+    const f = pick();
+    const comment = f.comments[Math.floor(Math.random() * f.comments.length)];
+    const num = 1 + Math.floor(Math.random() * 50);
+    $("no").textContent = "第" + toKanji(num) + "番";
+    fortune.textContent = f.name;
+    resultSound(f.name);
+    announce(f, comment);
+    fortune.className = "fortune pop " + f.cls;
+    $("comment").textContent = comment;
+    slip.classList.remove("shake");
+
+    history.unshift(f.name);
+    if (history.length > 10) history.pop();
+    $("hist").innerHTML = history.map(h => "<li>" + h + "</li>").join("");
+    btn.disabled = false;
+  }, ROLL_MS);
+});
+</script>
